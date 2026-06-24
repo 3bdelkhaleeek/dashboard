@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistics OS | Smart Data Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        /* CSS Variables for Dark Mode (Default) */
+        :root {
+            --bg-dark: #0d1117;
+            --card-bg: #161b22;
+            --sidebar-bg: #010409;
+            --border: #30363d;
+            --accent: #2f81f7;
+            --text-main: #c9d1d9;
+            --text-bright: #ffffff;
+            --success: #3fb950;
+            --danger: #f85149;
+            --warning: #d29922;
+            --table-head: #21262d;
+            --scroll-thumb: #30363d;
+            --scroll-hover: #484f58;
+            --hm-0: #161b22;
+        }
+
+        /* CSS Variables for Light Mode */
+        body.light-mode {
+            --bg-dark: #f3f4f6;
+            --card-bg: #ffffff;
+            --sidebar-bg: #f8f9fa;
+            --border: #e5e7eb;
+            --accent: #0969da;
+            --text-main: #4b5563;
+            --text-bright: #111827;
+            --table-head: #f9fafb;
+            --scroll-thumb: #cbd5e1;
+            --scroll-hover: #94a3b8;
+            --hm-0: #f3f4f6;
+        }
+
+        *{box-sizing:border-box;font-family:'Segoe UI',Tahoma,sans-serif;}
+        body{margin:0;background:var(--bg-dark);color:var(--text-main);display:flex;height:100vh;overflow:hidden;transition:background 0.3s, color 0.3s;}
+        
+        /* === Sidebar Styles === */
+        .sidebar {
+            width: 260px;
+            min-width: 260px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            overflow-y: auto;
+            transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-color 0.3s;
+        }
+        
+        body.sidebar-closed .sidebar {
+            width: 0;
+            min-width: 0;
+            padding-left: 0;
+            padding-right: 0;
+            opacity: 0;
+            border-right: none;
+            overflow: hidden;
+        }
+
+        /* Sidebar Toggle Button */
+        .sidebar-toggle {
+            position: fixed;
+            left: 245px;
+            top: 25px;
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            transition: left 0.3s ease, transform 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            font-size: 14px;
+            user-select: none;
+            border: 3px solid var(--bg-dark);
+        }
+        body.sidebar-closed .sidebar-toggle { left: 15px; transform: rotate(180deg); }
+        .sidebar-toggle:hover { transform: scale(1.1); }
+        body.sidebar-closed .sidebar-toggle:hover { transform: rotate(180deg) scale(1.1); }
+
+        .logo{font-size:20px;font-weight:800;color:var(--text-bright);margin-bottom:30px;letter-spacing:1px;white-space:nowrap;}
+        .logo span{color:var(--accent);}
+        .nav-item{padding:10px 15px;border-radius:8px;margin-bottom:6px;cursor:pointer;transition:.2s;font-weight:600;color:#8b949e;font-size:13px;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+        .nav-item:hover{background:var(--card-bg);color:var(--text-bright);}
+        .nav-item.active{background:rgba(47,129,247,.1);color:var(--accent);border-left:3px solid var(--accent);}
+        .sidebar hr{border:0;border-top:1px solid var(--border);width:100%;margin:10px 0;}
+        
+        .main{flex:1;padding:30px;overflow-y:auto;position:relative;transition:margin 0.3s ease; z-index: 1;}
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;border-bottom:1px solid var(--border);padding-bottom:15px;}
+        body.sidebar-closed .header h1 { margin-left: 30px !important; transition: 0.3s ease; }
+        
+        .view-section{display:none;animation:fadeIn .3s ease-in-out;}
+        .view-section.active-view{display:block;}
+        @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+        
+        .grid-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:30px;}
+        .card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:25px 20px;display:flex;flex-direction:column;justify-content:center;position:relative;transition:background 0.3s, border-color 0.3s;}
+        .card-title{font-size:11px;font-weight:bold;text-transform:uppercase;color:#8b949e;margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+        .card-value{font-size:26px;font-weight:bold;color:var(--text-bright);}
+        
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .summary-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; transition:background 0.3s, border-color 0.3s; }
+        .summary-card-title { font-size: 13px; font-weight: bold; color: var(--text-bright); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+        .summary-table th, .summary-table td { padding: 8px 5px; border-bottom: 1px solid var(--border); font-size: 11px; text-align: left; }
+        .summary-table th { background: transparent; color: #8b949e; border-bottom: 1px solid var(--border); }
+        .summary-table tr:last-child td { border-bottom: none; }
+
+        .tooltip{position:relative;display:inline-flex;cursor:help;color:var(--accent);font-size:14px;}
+        .tooltip .tooltiptext{visibility:hidden;width:220px;background-color:var(--table-head);color:var(--text-main);border-radius:8px;padding:10px;position:absolute;z-index:50;bottom:130%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .2s;font-size:11px;border:1px solid var(--border);line-height:1.4;font-weight:normal;}
+        .tooltip:hover .tooltiptext{visibility:visible;opacity:1;}
+        .section-title{font-size:18px;color:var(--text-bright);margin-bottom:15px;font-weight:600;border-left:4px solid var(--accent);padding-left:10px;}
+        
+        /* =========================================================
+           إصلاح تنسيق الجداول العادية (اللي اتمسح بالغلط)
+           ========================================================= */
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 12px; overflow: hidden; margin-bottom: 30px; transition: background 0.3s; }
+        th { background: var(--table-head); color: #8b949e; padding: 12px 15px; text-align: left; font-size: 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-bright); }
+        
+        /* =========================================================
+           الـ Freeze النهائي والمجبر (Sticky Columns & Headers)
+           ========================================================= */
+        .heatmap-container {
+            width: 100%;
+            max-width: 100%;
+            max-height: 65vh; 
+            overflow: auto !important; 
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+        
+        .hm-table {
+            width: max-content; 
+            min-width: 100%;
+            border-collapse: separate !important; 
+            border-spacing: 0;
+            overflow: visible !important; 
+        }
+        
+        .hm-table th, .hm-table td {
+            text-align: center;
+            min-width: 80px;
+            padding: 10px 15px;
+            border-right: 1px solid var(--bg-dark);
+            border-bottom: 1px solid var(--bg-dark);
+            font-size: 12px;
+            color: var(--text-bright);
+            white-space: nowrap;
+        }
+
+        .hm-table thead th {
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 10 !important;
+            background-color: var(--table-head) !important;
+            border-bottom: 2px solid var(--border) !important;
+        }
+
+        .hm-table tbody td.sticky-col {
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            left: 0 !important;
+            z-index: 11 !important; 
+            background-color: var(--card-bg) !important;
+            border-right: 3px solid var(--bg-dark) !important; 
+            text-align: left !important;
+            font-weight: bold;
+            box-shadow: 4px 0 8px rgba(0,0,0,0.3) !important; 
+        }
+
+        .hm-table thead th.sticky-col {
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 15 !important; 
+            background-color: var(--table-head) !important;
+            border-right: 3px solid var(--bg-dark) !important;
+            text-align: left !important;
+            box-shadow: 4px 2px 8px rgba(0,0,0,0.4) !important;
+        }
+        
+        /* === Muted Heatmap Colors === */
+        .hm-0 { background-color: var(--hm-0); color: #6e7681; } 
+        .hm-1 { background-color: #142834 !important; color: #8dc1ff !important; } 
+        .hm-2 { background-color: #1b3d54 !important; color: #b3daf9 !important; } 
+        .hm-3 { background-color: #205275 !important; color: #ffffff !important; } 
+        .hm-4 { background-color: #266997 !important; color: #ffffff !important; font-weight: bold; } 
+        
+        .hm-single { background-color: #9e6a03 !important; color: #ffffff !important; font-weight: bold !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); }
+        .hm-absent{background-color:rgba(248,81,73,0.15);color:var(--danger);font-weight:bold;} 
+        
+        .loader{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;color:var(--accent);font-weight:bold;text-align:center;z-index:1000;background:var(--card-bg);padding:30px;border-radius:20px;border:1px solid var(--border);width:350px;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+        .controls{margin-bottom:20px;display:flex;gap:15px;align-items:center;flex-wrap:wrap;}
+        select,input[list],input[type="text"]{background:var(--bg-dark);border:1px solid var(--border);color:var(--text-bright);padding:8px;border-radius:6px;outline:none;}
+        select{cursor:pointer;}
+        .chip{background:rgba(248,81,73,.1);color:var(--danger);border:1px solid var(--danger);padding:5px 12px;border-radius:15px;font-size:12px;display:flex;align-items:center;gap:8px;animation:fadeIn .2s;}
+        .chip span{cursor:pointer;font-weight:bold;background:var(--danger);color:white;border-radius:50%;width:18px;height:18px;display:flex;justify-content:center;align-items:center;line-height:1;transition:.2s;}
+        .chip span:hover{background:white;color:var(--danger);transform:scale(1.1);}
+        .modal{display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;overflow:auto;background-color:rgba(0,0,0,.8);animation:fadeIn .3s;}
+        .modal-content{background-color:var(--card-bg);margin:5% auto;padding:25px;border:1px solid var(--border);width:85%;max-width:700px;border-radius:12px;box-shadow:0 5px 15px rgba(0,0,0,.5);}
+        .close-modal{color:#8b949e;float:right;font-size:28px;font-weight:bold;cursor:pointer;}
+        .close-modal:hover{color:var(--text-bright);}
+        .late-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:20px;max-height:400px;overflow-y:auto;padding-right:5px;}
+        .late-item{background:var(--table-head);padding:10px;border-radius:6px;text-align:center;border:1px solid var(--danger);color:var(--text-bright);font-family:monospace;font-size:12px;}
+        .score-badge {background:#26a641; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold; margin-left:8px;}
+        
+        * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 10px; border: 2px solid var(--bg-dark); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
+        ::-webkit-scrollbar-button, ::-webkit-scrollbar-button:start, ::-webkit-scrollbar-button:end, ::-webkit-scrollbar-button:vertical, ::-webkit-scrollbar-button:horizontal { display: none !important; width: 0 !important; height: 0 !important; -webkit-appearance: none; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">❮</div>
+
+    <div id="late-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeLateModal()">&times;</span>
+            <h2 style="color:var(--danger);margin-top:0;display:flex;align-items:center;gap:10px;">⚠️ Late Orders List <span id="late-modal-count" style="font-size:14px;background:var(--danger);color:white;padding:2px 8px;border-radius:12px;">0</span></h2>
+            <p style="color:#8b949e;font-size:13px;margin-top:-10px;">أرقام الطلبات المتأخرة (LATE STATUS)</p>
+            <div id="late-orders-container" class="late-list"></div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="logo">LOGISTICS <span>OS</span></div>
+        <div class="nav-item active" onclick="switchView('view-overview', this)">📊 Master Overview</div><hr>
+        
+        <div class="nav-item" onclick="switchView('view-attendance', this)" style="color:var(--warning); font-size: 14px;">📅 DA Attendance Heatmap</div>
+        <div class="nav-item" onclick="switchView('view-bonus', this)" style="color:var(--success); font-size: 14px;">💰 Bonus Weeks</div><hr>
+        
+        <div class="nav-item" onclick="switchView('view-picker-top', this)">📦 Top Pickers (Overall)</div>
+        <div class="nav-item" onclick="switchView('view-picker-daily', this)">📅 Picker Daily Log</div><hr>
+        <div class="nav-item" onclick="switchView('view-lc-top', this)" style="color:var(--warning);">🎧 Top LCs (Overall)</div>
+        <div class="nav-item" onclick="switchView('view-lc-daily', this)" style="color:var(--warning);">📅 LC Daily Log</div>
+        <div class="nav-item" onclick="switchView('view-lc-heat', this)">🎧 LC Heatmap</div><hr>
+        <div class="nav-item" onclick="switchView('view-trips-top', this)">🚚 DA Trips (Overall)</div>
+        <div class="nav-item" onclick="switchView('view-trips-daily', this)">📅 DA Trips (Daily)</div>
+        <div class="nav-item" onclick="switchView('view-da-top', this)">🏆 Top DAs (Overall)</div>
+        <div class="nav-item" onclick="switchView('view-da-daily', this)">📅 DA Daily Log</div>
+        <div class="nav-item" onclick="switchView('view-da-zero', this)" style="color:var(--danger);">⚠️ DA Low Performers</div>
+        <div class="nav-item" onclick="switchView('view-da-heat', this)">🔥 DA Heatmap</div>
+        <div class="nav-item" onclick="switchView('view-dph', this)">⏱️ DA Per Hour</div><hr>
+        <div class="nav-item" onclick="switchView('view-zones', this)">🌍 Zones Analysis</div>
+        <div class="nav-item" onclick="switchView('view-dt-timeslot', this)">⚡ DT Per Timeslot</div>
+        
+        <div style="margin-top:auto; display:flex; flex-direction:column; gap:10px;">
+            <div class="nav-item" onclick="toggleTheme()" style="justify-content:center; background:var(--card-bg); border:1px solid var(--border);">
+                <span id="theme-icon">☀️</span> <span id="theme-text">Light Mode</span>
+            </div>
+            
+            <div style="padding:15px;border:1px solid var(--success);border-radius:8px;background:rgba(63,185,80,.1);font-size:11px;">
+                <p style="margin:0;font-weight:bold;color:var(--success);" id="syncStatus">● Sync Active</p>
+                <p style="margin:5px 0 0 0;color:var(--text-main);" id="lastUpdate">Updating...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="header">
+            <h1 style="margin:0;font-size:22px;color:var(--text-bright);" id="page-title">Master Overview</h1>
+            <button onclick="fetchData()" style="background:var(--accent);color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;">Manual Refresh</button>
+        </div>
+
+        <div id="loader" class="loader pulse">
+            <div id="loader-text" style="color:var(--accent);">Analyzing Multiple Sheets... ⏳</div>
+            <div style="font-size:11px;color:#8b949e;margin-top:5px;font-weight:normal;">Processing data... Please wait</div>
+        </div>
+
+        <div id="view-overview" class="view-section active-view">
+            <div class="grid-overview">
+                <div class="card"><div class="card-title">Completed Orders</div><div class="card-value" id="kpi-completed">0</div></div>
+                <div class="card"><div class="card-title">On Time SLA %</div><div class="card-value" id="kpi-ontime" style="color:var(--success);">0%</div></div>
+                <div class="card" style="border-color:var(--danger);">
+                    <div class="card-title" style="color:var(--danger);">Late Orders</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div class="card-value" id="kpi-late" style="color:var(--danger);">0</div>
+                        <button onclick="openLateModal()" style="background:var(--danger);color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">عرض الأرقام</button>
+                    </div>
+                </div>
+                <div class="card"><div class="card-title">Avg Package Lead (PT)</div><div class="card-value" id="kpi-pack">0 m</div></div>
+                <div class="card"><div class="card-title">Avg Delivery (Logistics)</div><div class="card-value" id="kpi-delivery-logistics">0 m</div></div>
+                <div class="card"><div class="card-title">Avg Delivery (FP)</div><div class="card-value" id="kpi-delivery-fp">0 m</div></div>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-card-title">🏆 Top 5 DAs (Overall)</div>
+                    <table class="summary-table">
+                        <thead><tr><th>DA Name</th><th>Orders</th><th>Avg DT</th></tr></thead>
+                        <tbody id="sum-top-da"></tbody>
+                    </table>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">🎧 Top 5 LCs (Overall)</div>
+                    <table class="summary-table">
+                        <thead><tr><th>Coordinator</th><th>Score</th><th>Late</th></tr></thead>
+                        <tbody id="sum-top-lc"></tbody>
+                    </table>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">📦 Top 5 Pickers (Overall)</div>
+                    <table class="summary-table">
+                        <thead><tr><th>Picker Name</th><th>Orders</th><th>Avg PT</th></tr></thead>
+                        <tbody id="sum-top-picker"></tbody>
+                    </table>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">🌍 Top Zones Requested</div>
+                    <table class="summary-table">
+                        <thead><tr><th>Sub Area Name</th><th>Orders</th><th>% Share</th></tr></thead>
+                        <tbody id="sum-zones"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-attendance" class="view-section">
+            <div class="section-title">DA Attendance Heatmap (سجل الحضور والغياب الشامل)</div>
+            <p style="color:#8b949e; font-size:12px; margin-top:-10px;">جميع أيام العمل (من الأقدم للأحدث)، الأخضر (حاضر)، الأحمر (غائب / 0 أوردر)</p>
+            <div class="controls" style="margin-bottom:10px;">
+                <label style="margin-left:20px;color:var(--warning);">Hide DA:</label>
+                <input list="da-list" id="att-exclude-input" placeholder="Search DA..." style="width:200px;">
+                <button onclick="addExcludeDA('att-exclude-input')" style="background:var(--danger);color:white;border:none;padding:8px 15px;border-radius:6px;cursor:pointer;">Exclude</button>
+            </div>
+            <div id="att-excluded-tags-container" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;"></div>
+            
+            <div class="heatmap-container">
+                <table class="hm-table">
+                    <thead id="att-heat-head"></thead>
+                    <tbody id="att-heat-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-bonus" class="view-section">
+            <div class="section-title">DA Bonus Tracking (Thursday ➔ Wednesday)</div>
+            <p style="color:#8b949e; font-size:12px; margin-top:-10px;">إحصائيات المناديب مجمعة أسبوعياً (إجمالي اليوم والتوزيع على Zones)</p>
+            <div class="controls" style="margin-bottom:10px;">
+                <label style="font-weight:bold; color:var(--success);">اختر أسبوع البونص:</label>
+                <select id="bonus-week-filter" onchange="renderBonus()" style="width: 300px; border-color:var(--success);"></select>
+            </div>
+            <div class="heatmap-container">
+                <table class="hm-table">
+                    <thead id="bonus-head"></thead>
+                    <tbody id="bonus-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-lc-top" class="view-section">
+            <div class="section-title">Top Performing Logistics Coordinators (By Score)</div>
+            <p style="color:#8b949e; font-size:12px; margin-top:-10px;">Score Weight: 35% Orders | 35% Avg DT | 30% Late</p>
+            <div class="controls" style="margin-bottom:10px;">
+                <label>Select Date:</label><select id="lc-top-date-filter" onchange="renderLCData()"></select>
+                <label style="margin-left:20px;color:var(--warning);">Hide LC:</label>
+                <input list="lc-list" id="lc-exclude-input" placeholder="Search LC..." style="width:200px;">
+                <datalist id="lc-list"></datalist>
+                <button onclick="addExcludeLC()" style="background:var(--danger);color:white;border:none;padding:8px 15px;border-radius:6px;cursor:pointer;">Exclude</button>
+            </div>
+            <div id="lc-excluded-tags-container" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;"></div>
+            <table><thead><tr><th style="width:50px;">Rank</th><th>Coordinator Name</th><th>Total Orders</th><th>Late Orders</th><th>Avg FP (Create➔Del)</th><th>Avg DT (Pack➔Del)</th></tr></thead><tbody id="lc-top-body"></tbody></table>
+        </div>
+
+        <div id="view-lc-daily" class="view-section">
+            <div class="section-title">Daily LC Leaderboard (By Score)</div>
+            <div class="controls"><label>Select Date:</label><select id="lc-daily-date-filter" onchange="renderLCData()"></select></div>
+            <table><thead><tr><th style="width:50px;">Rank</th><th>Coordinator Name</th><th>Orders Today</th><th>Late Orders</th><th>Avg FP</th><th>Avg DT</th></tr></thead><tbody id="lc-daily-body"></tbody></table>
+        </div>
+
+        <div id="view-trips-top" class="view-section"><div class="section-title">DA Trips (All Time)</div><table><thead><tr><th>DA Name (HRID)</th><th>Total Trips</th><th>1 Order</th><th>2 Orders</th><th>3+ Orders</th></tr></thead><tbody id="trips-top-body"></tbody></table></div>
+        <div id="view-trips-daily" class="view-section"><div class="section-title">DA Trips (Daily)</div><div class="controls"><label>Date:</label><select id="trips-daily-date-filter" onchange="renderTripData()"></select></div><table><thead><tr><th>DA Name (HRID)</th><th>Trips Today</th><th>1 Order</th><th>2 Orders</th><th>3+ Orders</th></tr></thead><tbody id="trips-daily-body"></tbody></table></div>
+        <div id="view-picker-top" class="view-section"><div class="section-title">Top Pickers (All Time)</div><table><thead><tr><th>Rank</th><th>Picker Name</th><th>Total Orders</th><th>Avg PT (Creation)</th><th>Avg PT (Assigned)</th></tr></thead><tbody id="picker-top-body"></tbody></table></div>
+        <div id="view-picker-daily" class="view-section"><div class="section-title">Pickers (Daily)</div><div class="controls"><label>Date:</label><select id="picker-daily-date-filter" onchange="renderPickerData()"></select></div><table><thead><tr><th>Rank</th><th>Picker Name</th><th>Orders Today</th><th>Avg PT (Creation)</th><th>Avg PT (Assigned)</th></tr></thead><tbody id="picker-daily-body"></tbody></table></div>
+        <div id="view-da-top" class="view-section"><div class="section-title">Top DAs (All Time)</div><table><thead><tr><th>Rank</th><th>DA Name</th><th>Total Orders</th><th>Zone 1</th><th>Zone 2</th><th>Avg DT</th></tr></thead><tbody id="da-top-body"></tbody></table></div>
+        <div id="view-da-daily" class="view-section"><div class="section-title">DAs (Daily)</div><div class="controls"><label>Date:</label><select id="da-daily-date-filter" onchange="renderDAData()"></select></div><table><thead><tr><th>Rank</th><th>DA Name</th><th>Total Orders</th><th>Zone 1</th><th>Zone 2</th><th>Avg DT</th></tr></thead><tbody id="da-daily-body"></tbody></table></div>
+        <div id="view-da-zero" class="view-section"><div class="section-title">DA Underperformers</div><div class="controls" style="margin-bottom:10px;"><label>Date:</label><select id="da-zero-date-filter" onchange="renderDAZero()"></select><label style="margin-left:20px;color:var(--warning);">Hide DA:</label><input list="da-list" id="da-exclude-input" placeholder="Search DA..." style="width:200px;"><datalist id="da-list"></datalist><button onclick="addExcludeDA('da-exclude-input')" style="background:var(--danger);color:white;border:none;padding:8px 15px;border-radius:6px;cursor:pointer;">Exclude</button></div><div id="excluded-tags-container" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;"></div><table><thead><tr><th>Rank</th><th>DA Name</th><th>Total Orders</th><th>Zone 1</th><th>Zone 2</th><th>Avg DT</th></tr></thead><tbody id="da-zero-body"></tbody></table></div>
+        
+        <div id="view-da-heat" class="view-section"><div class="section-title">DA Heatmap</div><div class="heatmap-container"><table class="hm-table"><thead id="da-heat-head"></thead><tbody id="da-heat-body"></tbody></table></div></div>
+        <div id="view-lc-heat" class="view-section"><div class="section-title">LC Heatmap</div><div class="heatmap-container"><table class="hm-table"><thead id="lc-heat-head"></thead><tbody id="lc-heat-body"></tbody></table></div></div>
+        <div id="view-zones" class="view-section"><div class="section-title">Zones Analysis</div><table><thead><tr><th>Sub Area Name</th><th>Zone</th><th>Frequency</th><th>Share %</th></tr></thead><tbody id="zone-table-body"></tbody></table></div>
+        
+        <div id="view-dph" class="view-section">
+            <div class="section-title">DA Per Hour (DPH)</div>
+            
+            <div class="controls" style="background:var(--card-bg); padding:15px; border-radius:8px; border:1px solid var(--border);">
+                <label style="font-weight:bold;">📅 Date:</label>
+                <select id="dph-date-filter" onchange="renderDPH()" style="margin-right:20px;"></select>
+                
+                <label style="font-weight:bold; color:var(--accent);">🔍 Filter DA:</label>
+                <input list="dph-da-list" id="dph-da-filter" placeholder="Search specific DA..." oninput="renderDPH()" style="width:250px; border:1px solid var(--accent);">
+                <datalist id="dph-da-list"></datalist>
+                
+                <button onclick="document.getElementById('dph-da-filter').value=''; renderDPH();" style="background:var(--danger); color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; margin-left:10px;">Clear Filter</button>
+                
+                <div style="margin-top:10px; width:100%; display:flex; gap:15px; font-size:11px; font-weight:bold;">
+                    <span style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:var(--hm-0); display:inline-block; border:1px solid var(--border);"></span> 0 Orders</span>
+                    <span style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#9e6a03; display:inline-block;"></span> 1 Order (Warning)</span>
+                    <span style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#1b3d54; display:inline-block;"></span> 2+ Orders (Muted Blue)</span>
+                </div>
+            </div>
+
+            <div class="heatmap-container">
+                <table class="hm-table">
+                    <thead id="dph-head"></thead>
+                    <tbody id="dph-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-dt-timeslot" class="view-section"><div class="section-title">Branch Performance Per Timeslot</div><div class="controls"><label>Date:</label><select id="dt-date-filter" onchange="renderDT()"></select></div><table><thead><tr><th>Timeslot</th><th>Delivered Orders</th><th>Avg PT</th><th>Avg DT</th><th>Avg FP</th></tr></thead><tbody id="dt-table-body"></tbody></table></div>
+    </div>
+
+    <script>
+        const setHTML = (id, html) => { let e = document.getElementById(id); if(e) e.innerHTML = html; };
+        
+        function toggleSidebar() { document.body.classList.toggle('sidebar-closed'); }
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            document.getElementById('theme-icon').innerText = isLight ? '🌙' : '☀️';
+            document.getElementById('theme-text').innerText = isLight ? 'Dark Mode' : 'Light Mode';
+        }
+
+        const CSV_URL_ORDERS = `https://docs.google.com/spreadsheets/d/1NFRNUw9Aeiq6-COx0fDpM3ZpnaBY1aha2iAxSZA3Uv8/export?format=csv&gid=1607365907`;
+        const CSV_URL_TRIPS  = `https://docs.google.com/spreadsheets/d/1NFRNUw9Aeiq6-COx0fDpM3ZpnaBY1aha2iAxSZA3Uv8/export?format=csv&gid=623052361`;
+
+        let MASTER_DATA=[], TRIPS_DATA=[], TRIPS_STATS={};
+        let GLOBAL_DAS=new Set(), GLOBAL_SLOTS=new Set(), GLOBAL_DATES=new Set(), GLOBAL_LCS=new Set();
+        let EXCLUDED_DAS=new Set(), EXCLUDED_LCS=new Set(), LATE_ORDERS_LIST=[], VIEWS_RENDERED={};
+        
+        const P_COLS = ['Picker Name', 'Packer Name', 'Packer', 'Picker', 'packaged_by_name', 'packaged_by'];
+        const LC_COLS = ['coordinator_name', 'assigning_by_name', 'Coordinator']; 
+
+        const getVal = (r, names) => { let k=Object.keys(r); for(let n of names) { let f=k.find(x=>x.trim().toLowerCase()===n.toLowerCase()); if(f) return r[f]; } return null; };
+        
+        const cleanName = (str) => {
+            if (!str) return '';
+            return str.toString().trim().replace(/\s+/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        };
+
+        const getDaName = (r) => {
+            let n = cleanName(getVal(r, ['DA Name', 'Driver Name'])) || 'Unassigned';
+            let h = getVal(r, ['Hrid (Dim_Drivers__Reporting)', 'Hrid', 'Driver ID', 'HRID', 'hrid']) || '0000';
+            return `${n} (${h})`;
+        };
+
+        const getZone = (r) => {
+            let z = getVal(r, ['Area _ Zone (Dim_Areas__Reporting)', 'Area_Zone (Dim_Areas__Reporting1)', 'Area _ Zone', 'Area_Zone', 'Zone', 'zone']) || '';
+            return z.trim();
+        };
+
+        const isCompletedOrder = (r) => {
+            let s = (getVal(r, ['Order Status', 'Status']) || '').toString().trim();
+            return s !== '';
+        };
+
+        const isLateStatus = (r) => {
+            let s = (getVal(r, ['LATE STATUS', 'LATE_STATUS', 'Late Status']) || '').toString().toLowerCase();
+            return s.includes('late');
+        };
+
+        const parseDt = (s) => {
+            if (!s || typeof s !== 'string') return null;
+            s = s.trim();
+            let d = new Date(s);
+            if (!isNaN(d.getTime()) && s.includes('202')) return d;
+
+            let dMatch = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+            if (!dMatch) return null;
+
+            let p1 = parseInt(dMatch[1]), p2 = parseInt(dMatch[2]), p3 = parseInt(dMatch[3]);
+            let year = p3 < 100 ? p3 + 2000 : p3;
+            let month, day;
+
+            if (p1 > 12) { day = p1; month = p2; } 
+            else if (p2 > 12) { month = p1; day = p2; } 
+            else { day = p1; month = p2; }
+
+            let tMatch = s.match(/(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*(AM|PM|am|pm)?/i);
+            let h = 0, m = 0;
+            if (tMatch) {
+                h = parseInt(tMatch[1]);
+                m = parseInt(tMatch[2]);
+                let ampm = (tMatch[3] || '').toLowerCase();
+                if (ampm === 'pm' && h < 12) h += 12;
+                if (ampm === 'am' && h === 12) h = 0;
+            }
+
+            let finalDate = new Date(year, month - 1, day, h, m);
+            if (!isNaN(finalDate.getTime())) return finalDate;
+            return null;
+        };
+
+        const extractDateStr = (d) => d ? `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}` : null;
+        
+        function getWeekRange(dateStr) {
+            let d = new Date(dateStr);
+            let day = d.getDay(); 
+            let diff = day >= 4 ? day - 4 : day + 3; 
+            let thu = new Date(d); thu.setDate(d.getDate() - diff);
+            let wed = new Date(thu); wed.setDate(thu.getDate() + 6);
+            return { start: extractDateStr(thu), end: extractDateStr(wed) };
+        }
+
+        const sortSlots = (a, b) => { const gh = s => { let m=s.match(/(\d+):(\d+)\s*(AM|PM)/i); if(!m)return 99; let h=parseInt(m[1]); if(m[3].toUpperCase()==='PM'&&h!==12)h+=12; if(m[3].toUpperCase()==='AM'&&h===12)h=0; return h; }; return gh(a)-gh(b); };
+
+        window.onclick = e => { let m=document.getElementById('late-modal'); if(e.target==m) m.style.display="none"; };
+        const openLateModal = () => { setHTML('late-modal-count', LATE_ORDERS_LIST.length); setHTML('late-orders-container', LATE_ORDERS_LIST.length===0?'<div style="color:var(--text-main);width:100%;text-align:center;">No Late Orders 🎉</div>':LATE_ORDERS_LIST.map(n=>`<div class="late-item">${n}</div>`).join('')); document.getElementById('late-modal').style.display='block'; };
+        const closeLateModal = () => document.getElementById('late-modal').style.display='none';
+
+        function switchView(id, el) {
+            document.querySelectorAll('.view-section').forEach(e=>e.classList.remove('active-view'));
+            document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
+            document.getElementById(id).classList.add('active-view');
+            el.classList.add('active');
+            document.getElementById('page-title').innerText = el.innerText.substring(3).replace(' Mode', '').replace('☀️', '').replace('🌙', '').trim();
+            if(!VIEWS_RENDERED[id]) {
+                if(id==='view-bonus') renderBonus();
+                if(id==='view-attendance') renderAttendance();
+                if(id.includes('picker')) renderPickerData();
+                if(id.includes('lc-top') || id.includes('lc-daily')) renderLCData();
+                if(id.includes('da-top') || id.includes('da-daily')) renderDAData();
+                if(id.includes('da-zero')) renderDAZero();
+                if(id.includes('trips')) renderTripData();
+                if(id==='view-da-heat') renderHeatmap('DA');
+                if(id==='view-lc-heat') renderHeatmap('LC');
+                if(id==='view-zones') renderZones();
+                VIEWS_RENDERED[id] = true;
+            }
+        }
+
+        const fetchCsv = url => new Promise((res, rej) => Papa.parse(url, { download:true, header:true, skipEmptyLines:true, transformHeader:h=>h.trim(), complete:res, error:e=>rej(e.message||e) }));
+
+        function fetchData() {
+            let ld = document.getElementById('loader'); ld.style.display = 'block'; VIEWS_RENDERED = {};
+            
+            let t = new Date().getTime(); 
+            let ordersUrl = CSV_URL_ORDERS + '&_cb=' + t;
+            let tripsUrl = CSV_URL_TRIPS + '&_cb=' + t;
+
+            Promise.all([
+                fetchCsv(ordersUrl).catch(e=>{throw new Error("Orders Sheet Error: "+e)}), 
+                fetchCsv(tripsUrl).catch(e=>{throw new Error("Trips Sheet Error: "+e)})
+            ])
+            .then(res => {
+                MASTER_DATA = res[0].data.filter(r => Object.keys(r).length > 5); TRIPS_DATA = res[1].data;
+                if(MASTER_DATA.length===0){ ld.innerHTML=`<span style="color:var(--warning);">⚠️ Orders Sheet Empty or wrong format</span>`; return; }
+                
+                MASTER_DATA.forEach(r => {
+                    r._parsedCr = parseDt(getVal(r, ['BF', 'created_at_ltz', 'created_at', 'Creation Time', 'Date']));
+                    r._dtStr = extractDateStr(r._parsedCr);
+                    r._daName = getDaName(r);
+                    r._isCompleted = isCompletedOrder(r);
+                    r._lc = cleanName(getVal(r, LC_COLS));
+                    r._zone = getZone(r);
+                    r._slot = getVal(r, ['Timeslot']);
+                    r._isLate = isLateStatus(r);
+                    r._pkDt = parseDt(getVal(r, ['packaged_at_ltz', 'packaged_at', 'Packaged At']));
+                    r._recDt = parseDt(getVal(r, ['received_at_ltz', 'received_at', 'Received At']));
+                    r._delDt = parseDt(getVal(r, ['delivered_at_ltz', 'delivered_at', 'Delivered At']));
+                    r._asDt = parseDt(getVal(r, ['Assigned At Eet', 'Assigned At', 'assigned_at']));
+                    r._picker = cleanName(getVal(r, P_COLS));
+                });
+                
+                TRIPS_DATA.forEach(r => {
+                    let daName = getVal(r,['DA Name','Driver Name'])||'Unassigned';
+                    let hr = getVal(r,['HRID','Hrid (Dim_Drivers__Reporting)','Hrid','Driver ID'])||'0000';
+                    r._daName = `${daName} (${hr})`;
+                    r._parsedDt = parseDt(getVal(r,['DA started trip at','Trip assigned at']));
+                    r._dtStr = extractDateStr(r._parsedDt);
+                    r._tid = getVal(r,['Trip Id','Trip ID','Route ID']);
+                });
+
+                setTimeout(() => { try { processCore(); processTrips(); } catch(e) { console.error(e); } ld.style.display = 'none'; }, 50);
+                setHTML('lastUpdate', "Last Sync: " + new Date().toLocaleTimeString());
+            }).catch(err => { ld.innerHTML = `<span style="color:var(--danger);font-size:18px;">❌ Fetch Error</span><br><br><span style="color:var(--text-bright);font-size:12px;">${err.message}</span><br><br><span style="color:#8b949e;font-size:11px;">Make sure BOTH sheets are shared (Anyone with link)</span>`; });
+        }
+
+        function processTrips() {
+            TRIPS_STATS = {}; let tg = {}; 
+            TRIPS_DATA.forEach(r => {
+                let tid = r._tid; if(!tid) return;
+                if(!tg[tid]) { 
+                    tg[tid]={da:r._daName, day:r._dtStr, c:0}; 
+                }
+                tg[tid].c++;
+            });
+            Object.values(tg).forEach(t => {
+                if(t.da.includes('Unassigned')) return;
+                if(!TRIPS_STATS[t.da]) TRIPS_STATS[t.da] = { o:{t:0,o1:0,o2:0,o3:0}, d:{} };
+                TRIPS_STATS[t.da].o.t++; if(t.c===1)TRIPS_STATS[t.da].o.o1++; else if(t.c===2)TRIPS_STATS[t.da].o.o2++; else TRIPS_STATS[t.da].o.o3++;
+                if(t.day){
+                    if(!TRIPS_STATS[t.da].d[t.day]) TRIPS_STATS[t.da].d[t.day]={t:0,o1:0,o2:0,o3:0};
+                    let dayObj = TRIPS_STATS[t.da].d[t.day]; dayObj.t++; if(t.c===1)dayObj.o1++; else if(t.c===2)dayObj.o2++; else dayObj.o3++;
+                }
+            });
+        }
+
+        function processCore() {
+            let cp=0, on=0, pkT=0, pkC=0, dLT=0, dLC=0, dFT=0, dFC=0, z1=0, z2=0, lateC=0;
+            LATE_ORDERS_LIST=[]; GLOBAL_DAS.clear(); GLOBAL_SLOTS.clear(); GLOBAL_DATES.clear(); GLOBAL_LCS.clear();
+            
+            let weeksMap = {}; 
+
+            MASTER_DATA.forEach(r => {
+                let day = r._dtStr;
+
+                if(day) {
+                    GLOBAL_DATES.add(day);
+                    let wr = getWeekRange(day);
+                    let key = `${wr.start}|${wr.end}`;
+                    weeksMap[key] = `Thu ${wr.start.substring(5)} ➔ Wed ${wr.end.substring(5)}`;
+                }
+
+                let dan = r._daName, zn = r._zone, lc = r._lc, sl = r._slot;
+                
+                if(!dan.includes('Unassigned') && dan.trim() !== '') GLOBAL_DAS.add(dan); 
+                if(lc.trim() !== '') GLOBAL_LCS.add(lc); 
+                if(sl && sl.includes('-')) GLOBAL_SLOTS.add(sl);
+                
+                if(r._isCompleted) { 
+                    cp++; 
+                    if(r._isLate) { 
+                        lateC++; 
+                        let onum=getVal(r,['Order Number','Shipment Key','Order ID'])||'N/A'; 
+                        if(onum!=='N/A') LATE_ORDERS_LIST.push(onum); 
+                    } else {
+                        on++; 
+                    }
+                    if(zn.includes('1')) z1++; else if(zn.includes('2')) z2++; 
+                    
+                    if(r._pkDt && r._parsedCr){pkT+=(r._pkDt - r._parsedCr)/60000;pkC++;} 
+                    if(r._delDt){ 
+                        if(r._recDt){dLT+=(r._delDt - r._recDt)/60000;dLC++;} 
+                        if(r._parsedCr){dFT+=(r._delDt - r._parsedCr)/60000;dFC++;} 
+                    }
+                }
+            });
+            
+            setHTML('kpi-completed',cp); setHTML('kpi-ontime',cp>0?((on/cp)*100).toFixed(1)+'%':'0%'); setHTML('kpi-late',lateC);
+            setHTML('kpi-pack',pkC>0?Math.round(pkT/pkC)+' m':'0 m'); setHTML('kpi-delivery-logistics',dLC>0?Math.round(dLT/dLC)+' m':'0 m'); setHTML('kpi-delivery-fp',dFC>0?Math.round(dFT/dFC)+' m':'0 m'); setHTML('kpi-zones',`${z1} / ${z2}`);
+            
+            let dOp = Array.from(GLOBAL_DATES).sort().reverse().map(d=>`<option value="${d}">${d}</option>`).join(''), dOpA = `<option value="ALL">All Time</option>`+dOp;
+            ['dph','dt','da-daily','da-zero','picker-daily','trips-daily','lc-daily'].forEach(id => setHTML(id+'-date-filter', dOp));
+            setHTML('lc-top-date-filter', dOpA);
+            setHTML('da-list', Array.from(GLOBAL_DAS).sort().map(x=>`<option value="${x}">`).join('')); setHTML('lc-list', Array.from(GLOBAL_LCS).sort().map(x=>`<option value="${x}">`).join(''));
+            
+            let wKeys = Object.keys(weeksMap).sort().reverse();
+            let wOps = wKeys.map(k => `<option value="${k}">${weeksMap[k]}</option>`).join('');
+            setHTML('bonus-week-filter', wOps);
+
+            if(VIEWS_RENDERED['view-bonus']) renderBonus();
+            if(VIEWS_RENDERED['view-attendance']) renderAttendance();
+            
+            renderDPH(); renderDT(); renderDAData(); renderDAZero(); renderPickerData(); renderTripData(); renderLCData(); renderZones();
+        }
+
+        function renderAttendance() {
+            let st = {};
+            let dList = Array.from(GLOBAL_DATES).sort();
+
+            GLOBAL_DAS.forEach(da => { 
+                if(!Array.from(EXCLUDED_DAS).some(e=>da.toLowerCase().includes(e.toLowerCase()))) {
+                    st[da] = {}; 
+                    dList.forEach(d => st[da][d] = 0);
+                }
+            });
+
+            MASTER_DATA.forEach(r => {
+                if(r._isCompleted && r._dtStr) {
+                    let da = r._daName;
+                    if(st[da] && st[da][r._dtStr] !== undefined) {
+                        st[da][r._dtStr]++;
+                    }
+                }
+            });
+
+            let h = `<tr><th class="sticky-col">DA Name (المندوب)</th>${dList.map(d => `<th style="text-align:center;">${d.substring(5)}</th>`).join('')}</tr>`;
+            
+            let b = Object.keys(st).sort().map(da => {
+                let cells = dList.map(dStr => {
+                    let v = st[da][dStr];
+                    let c = v > 0 ? (v>20 ? 'hm-4' : v>10 ? 'hm-3' : 'hm-2') : 'hm-absent';
+                    let text = v > 0 ? v : '0';
+                    return `<td class="${c}">${text}</td>`;
+                }).join('');
+                return `<tr><td class="sticky-col">${da}</td>${cells}</tr>`;
+            }).join('');
+
+            setHTML('att-heat-head', h);
+            setHTML('att-heat-body', b || '<tr><td style="padding:20px;text-align:center;color:var(--text-bright);">No Data</td></tr>');
+        }
+
+        function renderBonus() {
+            let filterVal = document.getElementById('bonus-week-filter').value;
+            if(!filterVal) return;
+            let [startStr, endStr] = filterVal.split('|');
+            
+            let days = [];
+            let curr = new Date(startStr);
+            for(let i=0; i<7; i++) {
+                days.push(extractDateStr(curr));
+                curr.setDate(curr.getDate() + 1);
+            }
+            
+            let st = {};
+            GLOBAL_DAS.forEach(da => {
+                st[da] = { total: {t:0, z1:0, z2:0}, days: {} };
+                days.forEach(d => st[da].days[d] = {t:0, z1:0, z2:0});
+            });
+            
+            MASTER_DATA.forEach(r => {
+                if(!r._isCompleted) return;
+                if(days.includes(r._dtStr)) {
+                    let da = r._daName;
+                    if(st[da]) {
+                        let zn = r._zone;
+                        st[da].days[r._dtStr].t++;
+                        st[da].total.t++;
+                        if(zn.includes('1')) { st[da].days[r._dtStr].z1++; st[da].total.z1++; }
+                        else if(zn.includes('2')) { st[da].days[r._dtStr].z2++; st[da].total.z2++; }
+                    }
+                }
+            });
+            
+            let dayNames = ['الخميس', 'الجمعة', 'السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء'];
+            
+            let h = `<tr><th class="sticky-col" style="background:var(--table-head)!important;">DA Name</th>${days.map((d, i) => `<th style="text-align:center; min-width:80px;">${dayNames[i]}<br><small style="color:#8b949e; font-weight:normal;">${d.substring(5)}</small></th>`).join('')}<th style="background:#0e4429; color:white; text-align:center; min-width:100px;">Week Total<br><small style="font-weight:normal;">الإجمالي</small></th></tr>`;
+            
+            let b = Object.entries(st).sort((a,b) => b[1].total.t - a[1].total.t).map(([da, d]) => {
+                if(d.total.t === 0) return ''; 
+                
+                let cells = days.map(dayStr => {
+                    let dayData = d.days[dayStr];
+                    if(dayData.t === 0) return `<td class="hm-0" style="color:#8b949e">-</td>`;
+                    return `<td class="hm-2" style="border:1px solid var(--border);">
+                        <div style="font-size:16px; font-weight:bold; color:white;">${dayData.t}</div>
+                        <div style="font-size:10px; color:#c9d1d9; margin-top:3px; background:rgba(0,0,0,0.2); padding:2px; border-radius:4px;">Z1: <span style="color:#fff">${dayData.z1}</span> | Z2: <span style="color:#fff">${dayData.z2}</span></div>
+                    </td>`;
+                }).join('');
+                
+                let totalCell = `<td style="background:rgba(63,185,80,0.1); border-left:2px solid var(--success); text-align:center;">
+                    <div style="font-size:20px; font-weight:bold; color:var(--success);">${d.total.t}</div>
+                    <div style="font-size:11px; color:var(--text-main); margin-top:3px;">Z1: ${d.total.z1} | Z2: ${d.total.z2}</div>
+                </td>`;
+                
+                return `<tr><td class="sticky-col">${da}</td>${cells}${totalCell}</tr>`;
+            }).join('');
+            
+            setHTML('bonus-head', h);
+            setHTML('bonus-body', b || `<tr><td colspan="9" style="text-align:center; padding:20px;">No Bonus Data for this week</td></tr>`);
+        }
+
+        const addExcludeLC=()=>{let i=document.getElementById('lc-exclude-input'),v=i.value.trim(); if(v&&!EXCLUDED_LCS.has(v)){EXCLUDED_LCS.add(v);i.value='';renderTags('lc');renderLCData();}};
+        const removeExcludeLC=(l)=>{EXCLUDED_LCS.delete(l);renderTags('lc');renderLCData();};
+        const addExcludeDA=(inputId)=>{
+            let id = typeof inputId === 'string' ? inputId : 'da-exclude-input';
+            let i = document.getElementById(id);
+            if(!i) return; let v = i.value.trim(); 
+            if(v && !EXCLUDED_DAS.has(v)){
+                EXCLUDED_DAS.add(v); i.value=''; renderTags('da');
+                if(VIEWS_RENDERED['view-da-zero']) renderDAZero();
+                if(VIEWS_RENDERED['view-attendance']) renderAttendance();
+            }
+        };
+        const removeExcludeDA=(d)=>{
+            EXCLUDED_DAS.delete(d);renderTags('da');
+            if(VIEWS_RENDERED['view-da-zero']) renderDAZero();
+            if(VIEWS_RENDERED['view-attendance']) renderAttendance();
+        };
+        
+        function renderTags(type) {
+            let isLC=type==='lc', s=isLC?EXCLUDED_LCS:EXCLUDED_DAS, fn=isLC?'removeExcludeLC':'removeExcludeDA';
+            let h = s.size===0 ? '' : Array.from(s).map(x=>`<div class="chip">${x} <span onclick="${fn}('${x.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">×</span></div>`).join('');
+            if(isLC) {
+                let c = document.getElementById('lc-excluded-tags-container');
+                if(c) c.innerHTML = h;
+            } else {
+                let c1 = document.getElementById('excluded-tags-container');
+                let c2 = document.getElementById('att-excluded-tags-container');
+                if(c1) c1.innerHTML = h;
+                if(c2) c2.innerHTML = h;
+            }
+        }
+
+        function renderLCData() {
+            let fTop=document.getElementById('lc-top-date-filter').value, fDaily=document.getElementById('lc-daily-date-filter').value;
+            let sTop={}, sDaily={};
+            MASTER_DATA.forEach(r=>{
+                if(!r._isCompleted) return; 
+                let lc = r._lc;
+                if(lc==='') return; 
+                if(Array.from(EXCLUDED_LCS).some(e=>lc.toLowerCase().includes(e.toLowerCase()))) return;
+                
+                let fpM = r._delDt && r._parsedCr ? Math.max(0,Math.round((r._delDt - r._parsedCr)/60000)) : null;
+                let logM = r._delDt && r._pkDt ? Math.max(0,Math.round((r._delDt - r._pkDt)/60000)) : null;
+                
+                const addS = (obj) => { 
+                    if(!obj[lc])obj[lc]={t:0,fpT:0,fpC:0,logT:0,logC:0,late:0}; 
+                    obj[lc].t++; 
+                    if(fpM!==null){obj[lc].fpT+=fpM;obj[lc].fpC++;} 
+                    if(logM!==null){obj[lc].logT+=logM;obj[lc].logC++;} 
+                    if(r._isLate) obj[lc].late++; 
+                };
+                if(fTop==='ALL'||r._dtStr===fTop) addS(sTop); 
+                if(r._dtStr===fDaily) addS(sDaily);
+            });
+
+            const buildH = (obj, targetSumID) => {
+                let arr = Object.entries(obj).map(([lc,d])=>{
+                    let avgL = d.logC>0 ? Math.round(d.logT/d.logC) : 0; 
+                    return {lc, d, avgF: d.fpC>0?Math.round(d.fpT/d.fpC):0, avgL};
+                });
+                if(arr.length === 0) return '<tr><td colspan="6" align="center">No data</td></tr>';
+
+                let maxOrders = Math.max(...arr.map(x=>x.d.t), 1); 
+                let minDt = Math.min(...arr.map(x=>x.avgL).filter(x=>x>0)); 
+                if(minDt === Infinity || minDt === -Infinity) minDt = 1;
+
+                arr.forEach(x => {
+                    let scoreOrders = (x.d.t / maxOrders) * 35;
+                    let scoreLate = (1 - (x.d.late / x.d.t)) * 30;
+                    let scoreDt = x.avgL > 0 ? (minDt / x.avgL) * 35 : 0; 
+                    x.totalScore = scoreOrders + scoreLate + scoreDt;
+                });
+
+                let sorted = arr.sort((a,b) => b.totalScore - a.totalScore);
+                
+                if(targetSumID) {
+                    let sumHTML = sorted.slice(0, 5).map(x => `<tr><td style="color:var(--text-bright);font-weight:bold;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${x.lc}">${x.lc}</td><td><span class="score-badge">${x.totalScore.toFixed(0)}</span></td><td style="color:var(--danger);font-weight:bold;">${x.d.late}</td></tr>`).join('');
+                    setHTML(targetSumID, sumHTML);
+                }
+
+                return sorted.map((x,i) => {
+                    let scoreDisplay = `<span class="score-badge">${x.totalScore.toFixed(1)}</span>`;
+                    return `<tr>
+                        <td style="font-weight:bold;color:var(--accent);font-size:16px;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
+                        <td style="font-weight:bold;">${x.lc} ${scoreDisplay}</td>
+                        <td style="color:var(--success);font-weight:bold;">${x.d.t}</td>
+                        <td style="color:var(--danger);font-weight:bold;">${x.d.late}</td>
+                        <td style="color:var(--warning);font-weight:bold;">${x.avgF===0?'-':x.avgF} m</td>
+                        <td style="color:var(--accent);font-weight:bold;">${x.avgL===0?'-':x.avgL} m</td>
+                    </tr>`;
+                }).join('');
+            };
+
+            setHTML('lc-top-body', buildH(sTop, 'sum-top-lc')); 
+            setHTML('lc-daily-body', buildH(sDaily, null));
+        }
+
+        function renderDAZero() {
+            let dt=document.getElementById('da-zero-date-filter').value, st={};
+            GLOBAL_DAS.forEach(da=>{ if(!Array.from(EXCLUDED_DAS).some(e=>da.toLowerCase().includes(e.toLowerCase()))) st[da]={t:0,z1:0,z2:0,dtT:0,dtC:0,sl:{}}; });
+            MASTER_DATA.forEach(r=>{
+                if(r._isCompleted && r._dtStr===dt) {
+                    let da = r._daName;
+                    if(!st[da]) return; 
+                    let zn = r._zone, sl = r._slot||'Unknown';
+                    let dM = r._delDt && r._recDt ? Math.round((r._delDt - r._recDt)/60000) : null;
+                    
+                    st[da].t++; 
+                    st[da].sl[sl] = (st[da].sl[sl]||0)+1; 
+                    if(zn.includes('1')) st[da].z1++; else if(zn.includes('2')) st[da].z2++; 
+                    if(dM!==null){ st[da].dtT+=dM; st[da].dtC++; }
+                }
+            });
+            setHTML('da-zero-body', Object.entries(st).sort((a,b)=>a[1].t-b[1].t).map(([da,d],i)=>{
+                let c = d.t===0?'color:var(--danger);':(d.t<10?'color:var(--warning);':'color:var(--success);'), ad=d.dtC>0?Math.round(d.dtT/d.dtC):0;
+                let h = d.t===0?`<span style="${c}font-weight:bold;font-size:16px;">0</span>`:`<div class="tooltip" style="${c}font-weight:bold;font-size:16px;cursor:help;border-bottom:1px dashed;">${d.t} <span style="font-size:12px;filter:grayscale(1);">👁️</span><span class="tooltiptext" style="width:180px;text-align:left;"><b style="color:var(--text-bright)">Breakdown:</b><hr style="border:0;border-top:1px solid var(--border);margin:5px 0;">${Object.entries(d.sl).sort().map(([s,c])=>`<span style="color:var(--accent);font-weight:bold">${c}</span> ➔ ${s}`).join('<br>')}</span></div>`;
+                return `<tr><td style="font-weight:bold;color:var(--accent);font-size:16px;">${i+1}</td><td style="font-weight:bold;">${da}</td><td>${h}</td><td><span class="badge" style="background:var(--table-head);border:1px solid var(--border)">${d.z1}</span></td><td><span class="badge b-blue">${d.z2}</span></td><td>${ad>0?ad+' m':'-'}</td></tr>`;
+            }).join(''));
+        }
+
+        function renderTripData() {
+            let dt = document.getElementById('trips-daily-date-filter').value;
+            const b = (arr) => arr.map(x=>`<tr><td style="font-weight:bold;">${x.da}</td><td style="color:var(--accent);font-weight:bold;">${x.d.t}</td><td><span class="badge" style="background:var(--table-head);border:1px solid var(--border)">${x.d.o1}</span></td><td><span class="badge b-blue">${x.d.o2}</span></td><td><span class="badge" style="background:rgba(63,185,80,0.2);color:var(--success);">${x.d.o3}</span></td></tr>`).join('');
+            setHTML('trips-top-body', b(Object.entries(TRIPS_STATS).map(([da,d])=>({da,d:d.o})).sort((a,b)=>b.d.t-a.d.t))||'<tr><td colspan="5" align="center">No data</td></tr>');
+            setHTML('trips-daily-body', b(Object.entries(TRIPS_STATS).filter(x=>x[1].d[dt]&&x[1].d[dt].t>0).map(([da,d])=>({da,d:d.d[dt]})).sort((a,b)=>b.d.t-a.d.t))||'<tr><td colspan="5" align="center">No data</td></tr>');
+        }
+
+        function renderPickerData() {
+            let dt = document.getElementById('picker-daily-date-filter').value, sTop={}, sDaily={};
+            MASTER_DATA.forEach(r=>{
+                if(!r._isCompleted) return;
+                let p = r._picker;
+                if(p==='') return; 
+                
+                let pC = r._pkDt && r._parsedCr ? Math.max(0,Math.round((r._pkDt - r._parsedCr)/60000)) : null;
+                let pA = r._pkDt && r._asDt ? Math.max(0,Math.round((r._pkDt - r._asDt)/60000)) : null;
+                
+                const add = (o) => { 
+                    if(!o[p])o[p]={t:0,cT:0,cC:0,aT:0,aC:0}; 
+                    o[p].t++; 
+                    if(pC!==null){o[p].cT+=pC;o[p].cC++;} 
+                    if(pA!==null){o[p].aT+=pA;o[p].aC++;} 
+                };
+                add(sTop); 
+                if(r._dtStr===dt) add(sDaily);
+            });
+            const b = (obj, targetSumID) => {
+                let sorted = Object.entries(obj).sort((a,b)=>b[1].t-a[1].t);
+                
+                if(targetSumID) {
+                    let sumHTML = sorted.slice(0, 5).map(([p,d]) => `<tr><td style="color:var(--text-bright);font-weight:bold;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${p}">${p}</td><td style="color:var(--success);font-weight:bold;">${d.t}</td><td style="color:#8b949e;font-weight:bold;">${d.cC>0?Math.round(d.cT/d.cC):0} m</td></tr>`).join('');
+                    setHTML(targetSumID, sumHTML);
+                }
+
+                return sorted.map(([p,d],i)=>`<tr><td style="font-weight:bold;color:var(--accent);font-size:16px;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td><td style="font-weight:bold;">${p}</td><td style="color:var(--success);font-weight:bold;">${d.t}</td><td style="color:#8b949e;font-weight:bold;">${d.cC>0?Math.round(d.cT/d.cC):0} m</td><td style="color:var(--text-main);font-weight:bold;">${d.aC>0?Math.round(d.aT/d.aC):0} m</td></tr>`).join('');
+            };
+            setHTML('picker-top-body', b(sTop, 'sum-top-picker')); 
+            setHTML('picker-daily-body', b(sDaily, null));
+        }
+
+        function renderDAData() {
+            let dt=document.getElementById('da-daily-date-filter').value, sTop={}, sDaily={};
+            MASTER_DATA.forEach(r=>{
+                if(!r._isCompleted) return;
+                let da = r._daName, zn = r._zone;
+                let dM = r._delDt && r._recDt ? Math.round((r._delDt - r._recDt)/60000) : null;
+                
+                const add = (o) => { 
+                    if(!da.includes('Unassigned')){ 
+                        if(!o[da])o[da]={t:0,z1:0,z2:0,dT:0,dC:0}; 
+                        o[da].t++; 
+                        if(zn.includes('1')) o[da].z1++; else if(zn.includes('2')) o[da].z2++; 
+                        if(dM!==null){ o[da].dT+=dM; o[da].dC++; } 
+                    } 
+                };
+                add(sTop); 
+                if(r._dtStr===dt) add(sDaily);
+            });
+            const b = (obj, targetSumID) => {
+                let sorted = Object.entries(obj).sort((a,b)=>b[1].t-a[1].t);
+                
+                if(targetSumID) {
+                    let sumHTML = sorted.slice(0, 5).map(([da,d]) => `<tr><td style="color:var(--text-bright);font-weight:bold;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${da}">${da.split(' (')[0]}</td><td style="color:var(--success);font-weight:bold;">${d.t}</td><td style="color:var(--accent);font-weight:bold;">${d.dC>0?Math.round(d.dT/d.dC):0} m</td></tr>`).join('');
+                    setHTML(targetSumID, sumHTML);
+                }
+
+                return sorted.map(([da,d],i)=>`<tr><td style="font-weight:bold;color:var(--accent);font-size:16px;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td><td style="font-weight:bold;">${da}</td><td style="color:var(--success);font-weight:bold;">${d.t}</td><td><span class="badge b-blue">${d.z1}</span></td><td><span class="badge b-blue">${d.z2}</span></td><td>${d.dC>0?Math.round(d.dT/d.dC):0} m</td></tr>`).join('');
+            };
+            setHTML('da-top-body', b(sTop, 'sum-top-da')); 
+            setHTML('da-daily-body', b(sDaily, null));
+        }
+
+        function renderHeatmap(type) {
+            let st={}, ds=Array.from(GLOBAL_DATES).sort(), isDA=type==='DA';
+            MASTER_DATA.forEach(r=>{
+                if(!r._isCompleted) return;
+                let day = r._dtStr;
+                let k = isDA ? r._daName : r._lc;
+                if(day && k && !k.includes('Unassigned') && k!==''){ 
+                    if(!st[k]) st[k]={}; 
+                    st[k][day] = (st[k][day]||0)+1; 
+                }
+            });
+            let h=`<tr><th class="sticky-col">${type} Name</th>${ds.map(d=>`<th>${d.substring(5)}</th>`).join('')}</tr>`;
+            let b=Object.keys(st).sort().map(k=>`<tr><td class="sticky-col">${k}</td>${ds.map(d=>{let v=st[k][d]||0; let c=isDA?(v>20?'hm-4':v>10?'hm-3':v>5?'hm-2':v>0?'hm-1':'hm-0'):(v>60?'hm-4':v>30?'hm-3':v>10?'hm-2':v>0?'hm-1':'hm-0'); return `<td class="${c}">${v}</td>`;}).join('')}</tr>`).join('');
+            setHTML(isDA?'da-heat-head':'lc-heat-head', h); setHTML(isDA?'da-heat-body':'lc-heat-body', b);
+        }
+
+        function renderZones() {
+            let sub={}; MASTER_DATA.forEach(r=>{
+                if(!r._isCompleted) return;
+                let s=getVal(r,['Last Sub Area Name'])||'Other', z=r._zone||'Unknown';
+                if(!sub[s]) sub[s]={c:0,z}; 
+                sub[s].c++;
+            });
+            let total = Object.values(sub).reduce((sum, item) => sum + item.c, 0);
+            if(total===0) return;
+            
+            let sorted = Object.entries(sub).sort((a,b)=>b[1].c-a[1].c);
+            
+            let sumHTML = sorted.slice(0, 5).map(([n,d])=>`<tr><td style="color:var(--text-bright);font-weight:bold;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${n}">${n}</td><td style="color:var(--success);font-weight:bold;">${d.c}</td><td style="color:var(--warning);font-weight:bold;">${((d.c/total)*100).toFixed(1)}%</td></tr>`).join('');
+            setHTML('sum-zones', sumHTML);
+
+            setHTML('zone-table-body', sorted.map(([n,d])=>`<tr><td style="font-weight:bold;">${n}</td><td><span class="badge b-blue">${d.z}</span></td><td>${d.c}</td><td style="color:var(--accent);font-weight:bold;">${((d.c/total)*100).toFixed(1)}%</td></tr>`).join(''));
+        }
+
+        function renderDPH() {
+            let dtFilter = document.getElementById('dph-date-filter');
+            if(!dtFilter) return; 
+            
+            let dt = dtFilter.value;
+            let filterInput = document.getElementById('dph-da-filter');
+            let filterDA = filterInput ? filterInput.value.trim().toLowerCase() : '';
+            
+            let dp = {}, sls = Array.from(GLOBAL_SLOTS).sort(sortSlots);
+            let availableDAs = new Set();
+            
+            MASTER_DATA.forEach(r => {
+                if (r._dtStr === dt && r._isCompleted) {
+                    let sl = r._slot, da = r._daName;
+                    if (sl && sl.includes('-') && !da.includes('Unassigned')) {
+                        availableDAs.add(da);
+                        if (!dp[da]) dp[da] = {};
+                        dp[da][sl] = (dp[da][sl] || 0) + 1;
+                    }
+                }
+            });
+            
+            if(filterInput) {
+                setHTML('dph-da-list', Array.from(availableDAs).sort().map(x => `<option value="${x}">`).join(''));
+            }
+
+            let filteredDAs = Object.keys(dp).sort();
+            
+            if(filterDA) {
+                filteredDAs = filteredDAs.filter(da => da.toLowerCase().includes(filterDA));
+            }
+
+            if (filteredDAs.length === 0) {
+                setHTML('dph-head', `<tr><th class="sticky-col">DA Name</th></tr>`);
+                setHTML('dph-body', `<tr><td style="color:var(--danger); padding:20px; text-align:center;">No data available ${filterDA ? 'for this specific DA' : 'for this date'}.</td></tr>`);
+                return;
+            }
+
+            setHTML('dph-head', `<tr><th class="sticky-col">DA Name</th>${sls.map(s => `<th>${s}</th>`).join('')}</tr>`);
+            
+            setHTML('dph-body', filteredDAs.map(da => {
+                return `<tr><td class="sticky-col" title="${da}">${da}</td>${sls.map(s => {
+                    let v = dp[da] && dp[da][s] ? dp[da][s] : 0;
+                    let c = v === 0 ? 'hm-0' : (v === 1 ? 'hm-single' : (v >= 4 ? 'hm-4' : (v >= 3 ? 'hm-3' : 'hm-2')));
+                    return `<td class="${c}">${v}</td>`;
+                }).join('')}</tr>`;
+            }).join(''));
+        }
+
+        function renderDT() {
+            let dt=document.getElementById('dt-date-filter').value, st={}, sls=Array.from(GLOBAL_SLOTS).sort(sortSlots);
+            MASTER_DATA.forEach(r=>{
+                if(r._dtStr===dt && r._isCompleted){
+                    let sl = r._slot;
+                    let pM = r._pkDt && r._parsedCr ? Math.round((r._pkDt - r._parsedCr)/60000) : null;
+                    let dM = r._delDt && r._recDt ? Math.round((r._delDt - r._recDt)/60000) : null;
+                    let fM = r._delDt && r._parsedCr ? Math.round((r._delDt - r._parsedCr)/60000) : null;
+                    
+                    if(sl && sl.includes('-')){
+                        if(!st[sl]) st[sl]={pT:0,pC:0,dT:0,dC:0,fT:0,fC:0,o:0}; 
+                        st[sl].o++; 
+                        if(pM!==null){st[sl].pT+=pM;st[sl].pC++;} 
+                        if(dM!==null){st[sl].dT+=dM;st[sl].dC++;} 
+                        if(fM!==null){st[sl].fT+=fM;st[sl].fC++;}
+                    }
+                }
+            });
+            setHTML('dt-table-body', sls.map(s=>{
+                let d=st[s]; if(!d)return `<tr><td style="font-weight:bold;">${s}</td><td>0</td><td>-</td><td>-</td><td>-</td></tr>`;
+                return `<tr><td style="font-weight:bold;">${s}</td><td>${d.o}</td><td style="color:var(--text-main);font-weight:bold;">${d.pC>0?Math.round(d.pT/d.pC):0} m</td><td style="color:var(--accent);font-weight:bold;">${d.dC>0?Math.round(d.dT/d.dC):0} m</td><td style="color:var(--warning);font-weight:bold;">${d.fC>0?Math.round(d.fT/d.fC):0} m</td></tr>`;
+            }).join(''));
+        }
+
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
