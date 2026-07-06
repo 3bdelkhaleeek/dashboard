@@ -124,16 +124,10 @@
         .tooltip:hover .tooltiptext{visibility:visible;opacity:1;}
         .section-title{font-size:18px;color:var(--text-bright);margin-bottom:15px;font-weight:600;border-left:4px solid var(--accent);padding-left:10px;}
         
-        /* =========================================================
-           إصلاح تنسيق الجداول العادية (اللي اتمسح بالغلط)
-           ========================================================= */
         table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 12px; overflow: hidden; margin-bottom: 30px; transition: background 0.3s; }
         th { background: var(--table-head); color: #8b949e; padding: 12px 15px; text-align: left; font-size: 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
         td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-bright); }
         
-        /* =========================================================
-           الـ Freeze النهائي والمجبر (Sticky Columns & Headers)
-           ========================================================= */
         .heatmap-container {
             width: 100%;
             max-width: 100%;
@@ -197,7 +191,6 @@
             box-shadow: 4px 2px 8px rgba(0,0,0,0.4) !important;
         }
         
-        /* === Muted Heatmap Colors === */
         .hm-0 { background-color: var(--hm-0); color: #6e7681; } 
         .hm-1 { background-color: #142834 !important; color: #8dc1ff !important; } 
         .hm-2 { background-color: #1b3d54 !important; color: #b3daf9 !important; } 
@@ -280,7 +273,13 @@
     <div class="main">
         <div class="header">
             <h1 style="margin:0;font-size:22px;color:var(--text-bright);" id="page-title">Master Overview</h1>
-            <button onclick="fetchData()" style="background:var(--accent);color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;">Manual Refresh</button>
+            <div style="display:flex; gap: 15px; align-items:center;">
+                <select id="month-selector" onchange="fetchData()" style="background:var(--accent);color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;outline:none;">
+                    <option value="july" selected>📅 بيانات شهر 7 (July)</option>
+                    <option value="june">📅 بيانات شهر 6 (June)</option>
+                </select>
+                <button onclick="fetchData()" style="background:var(--card-bg);color:var(--text-bright);border:1px solid var(--border);padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;">🔄 Refresh</button>
+            </div>
         </div>
 
         <div id="loader" class="loader pulse">
@@ -443,8 +442,17 @@
             document.getElementById('theme-text').innerText = isLight ? 'Dark Mode' : 'Light Mode';
         }
 
-        const CSV_URL_ORDERS = `https://docs.google.com/spreadsheets/d/1NFRNUw9Aeiq6-COx0fDpM3ZpnaBY1aha2iAxSZA3Uv8/export?format=csv&gid=1607365907`;
-        const CSV_URL_TRIPS  = `https://docs.google.com/spreadsheets/d/1NFRNUw9Aeiq6-COx0fDpM3ZpnaBY1aha2iAxSZA3Uv8/export?format=csv&gid=623052361`;
+        // Object holding the links for different months
+        const DATA_SOURCES = {
+            june: {
+                orders: `https://docs.google.com/spreadsheets/d/1NFRNUw9Aeiq6-COx0fDpM3ZpnaBY1aha2iAxSZA3Uv8/export?format=csv&gid=1607365907`,
+                trips: `https://docs.google.com/spreadsheets/d/1NFRNUw9Aeiq6-COx0fDpM3ZpnaBY1aha2iAxSZA3Uv8/export?format=csv&gid=623052361`
+            },
+            july: {
+                orders: `https://docs.google.com/spreadsheets/d/1n_lPR_ug--cf6wbe44QVLzouUhPPYJFo2VwEUnR2Suk/export?format=csv&gid=587214781`,
+                trips: `https://docs.google.com/spreadsheets/d/1n_lPR_ug--cf6wbe44QVLzouUhPPYJFo2VwEUnR2Suk/export?format=csv&gid=1514372633`
+            }
+        };
 
         let MASTER_DATA=[], TRIPS_DATA=[], TRIPS_STATS={};
         let GLOBAL_DAS=new Set(), GLOBAL_SLOTS=new Set(), GLOBAL_DATES=new Set(), GLOBAL_LCS=new Set();
@@ -556,9 +564,12 @@
         function fetchData() {
             let ld = document.getElementById('loader'); ld.style.display = 'block'; VIEWS_RENDERED = {};
             
+            // Get selected month from the dropdown
+            let selectedMonth = document.getElementById('month-selector').value;
             let t = new Date().getTime(); 
-            let ordersUrl = CSV_URL_ORDERS + '&_cb=' + t;
-            let tripsUrl = CSV_URL_TRIPS + '&_cb=' + t;
+            
+            let ordersUrl = DATA_SOURCES[selectedMonth].orders + '&_cb=' + t;
+            let tripsUrl = DATA_SOURCES[selectedMonth].trips + '&_cb=' + t;
 
             Promise.all([
                 fetchCsv(ordersUrl).catch(e=>{throw new Error("Orders Sheet Error: "+e)}), 
