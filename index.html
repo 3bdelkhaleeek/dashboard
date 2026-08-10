@@ -225,9 +225,9 @@
     };
 
     let currentUser = null;
-    const defaultState = { expectedCash: 0, denominations: { 200:0, 100:0, 50:0, 20:0, 10:0, 5:0, 1:0 }, bills: [] };
+    const defaultState = { expectedCash: 0, denominations: { 200:0, 100:0, 50:0, 20:0, 10:0, 5:0 }, bills: [] };
     let state = JSON.parse(JSON.stringify(defaultState));
-    const denomsList = [200, 100, 50, 20, 10, 5, 1];
+    const denomsList = [200, 100, 50, 20, 10, 5];
     const formatNum = (num) => Number(num).toLocaleString('en-US');
 
     const hridInput = document.getElementById('login-hrid');
